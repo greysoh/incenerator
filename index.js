@@ -44,7 +44,6 @@ server.on("connection", (ws) => {
           const diffArr = [];
 
           for (const j in globalData.broadcastMessages) {
-            console.log(localData[j], globalData.broadcastMessages[j])
             if (
               localData.length <= j ||
               JSON.stringify(localData[j]) !==
@@ -59,13 +58,18 @@ server.on("connection", (ws) => {
 
           for (const k of diffArr) {
             if (!k) continue;
-            if (k.type == "connection" && k.uuid == ws.uuid) continue;
+            if (k.type == "connection" && k.uuid == ws.uuid || k.type == "data_response") continue;
           
             ws.sendJSON(k);
           }
-        } else if (i.uuid == ws.uuid && i.type == "data_response") {
+        } else if (i.type == "data_response") {
+          console.log("%s: Scanning for messages...", ws.uuid);
+          console.log("%s:", ws.uuid, i);
+
+          if (ws.uuid != i.uuid) continue;
+
           if (i.data == undefined) {
-            console.log("WTF? node-id '%s' has an undefined message!", i.node-id);
+            console.log("%s: I have an undefined message!", i.uuid);
             continue;
           }
 
@@ -125,7 +129,7 @@ server.on("connection", (ws) => {
       const parsedMessage = JSON.parse(strMessage);
 
       if (parsedMessage.type == "data_response") {
-        if (parsedMessage.node == ws.uuid || !parsedMessage.data) {
+        if (parsedMessage.uuid == ws.uuid) {
           ws.sendJSON({
             type: "error",
             message: "Invalid data_response",
@@ -134,12 +138,12 @@ server.on("connection", (ws) => {
           return;
         }
 
-        const regex = /[0-9A-Fa-f]{6}/g;
-
-        if (!regex.test(parsedMessage.data.split(" ").join(""))) {
+        try {
+          Buffer.from(parsedMessage.data, "hex");
+        } catch (e) {
           ws.sendJSON({
             type: "error",
-            message: "Invalid node-id",
+            message: "Invalid data"
           });
 
           return;
@@ -147,7 +151,7 @@ server.on("connection", (ws) => {
 
         globalData.broadcastMessages.push(parsedMessage);
       }
-    } else {
+    } else if (ws.uuid != globalData.masterClientUUID) {
       globalData.broadcastMessages.push({
         type: "data",
         UUID: ws.uuid,
