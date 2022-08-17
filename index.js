@@ -39,34 +39,31 @@ server.on("connection", (ws) => {
         if (ws.uuid == globalData.masterClientUUID) {
           // FIXME: Running a for loop inside a thing that does not in any cases need it is redundant.
 
-          if (JSON.stringify(globalData.broadcastMessages) == JSON.stringify(localData))
-            continue;
-          
-          let diffArr = [];
-          
-          for (let j = 0; j < globalData.broadcastMessages.length; j++) {
+          if (JSON.stringify(globalData.broadcastMessages) == JSON.stringify(localData)) continue;
+
+          const diffArr = [];
+
+          for (const j in globalData.broadcastMessages) {
+            console.log(localData[j], globalData.broadcastMessages[j])
             if (
-              localData.length - 1 <= j ||
-              JSON.stringify(localData[j]) <=
-              JSON.stringify(broadcastMessages[j])
+              localData.length <= j ||
+              JSON.stringify(localData[j]) !==
+              JSON.stringify(globalData.broadcastMessages[j])
             ) {
-              console.log("DIFF:", globalData.broadcastMessages[j]);
               diffArr.push(globalData.broadcastMessages[j]);
             }
           }
 
-          console.log(diffArr);
-
-          localData = globalData.broadcastMessages;
+          // Attempt to patch the diff
+          localData = JSON.parse(JSON.stringify(globalData.broadcastMessages));
 
           for (const k of diffArr) {
             if (!k) continue;
-
             if (k.type == "connection" && k.uuid == ws.uuid) continue;
-
+          
             ws.sendJSON(k);
           }
-        } else if (i.uuid == ws.uuid && i.type == "message") {
+        } else if (i.uuid == ws.uuid && i.type == "data_response") {
           if (i.data == undefined) {
             console.log("WTF? node-id '%s' has an undefined message!", i.node-id);
             continue;
@@ -128,7 +125,7 @@ server.on("connection", (ws) => {
       const parsedMessage = JSON.parse(strMessage);
 
       if (parsedMessage.type == "data_response") {
-        if (!parsedMessage.node - id || !parsedMessage.data) {
+        if (parsedMessage.node == ws.uuid || !parsedMessage.data) {
           ws.sendJSON({
             type: "error",
             message: "Invalid data_response",
