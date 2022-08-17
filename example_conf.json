@@ -1,0 +1,6 @@
+{
+  "passwords": ["test"],
+
+  "port": 8081,
+  "latencyTimer": 5
+}

@@ -1,15 +1,14 @@
 const ws = require("ws");
-
 const crypto = require("crypto");
+
+const config = require("./config.json");
 
 const globalData = {
   broadcastMessages: [],
   masterClientUUID: null,
 };
 
-const password = "test"; // Placeholder.
-
-const server = new ws.Server({ port: 8080 });
+const server = new ws.Server({ port: config.port });
 
 server.on("connection", (ws) => {
   ws.uuid = crypto.randomUUID();
@@ -26,6 +25,8 @@ server.on("connection", (ws) => {
   });
 
   async function recvData() {
+    const latencyTimer = config.latencyTimer;
+
     function sleep(ms) {
       return new Promise((resolve) => setTimeout(resolve, ms));
     }
@@ -78,7 +79,7 @@ server.on("connection", (ws) => {
         }
       }
 
-      await sleep(10);
+      await sleep(config.latencyTimer);
     }
   }
 
@@ -105,7 +106,7 @@ server.on("connection", (ws) => {
           .replaceAll("\n", "")
           .replaceAll("\r", "");
 
-        if (bearer == password) {
+        if (config.passwords.contains(bearer)) {
           globalData.masterClientUUID = ws.uuid;
           ws.send("AcceptResponse Bearer: true");
         } else {
