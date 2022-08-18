@@ -62,6 +62,9 @@ server.on("connection", (ws) => {
             if (k.type == "connection" && k.uuid == ws.uuid || k.type == "data_response") continue;
           
             ws.sendJSON(k);
+
+            // Splice item out
+            globalData.broadcastMessages.splice(globalData.broadcastMessages.indexOf(k), 1);
           }
         } else if (i.type == "data_response") {
           if (ws.uuid != i.uuid) continue;
@@ -72,7 +75,9 @@ server.on("connection", (ws) => {
           }
 
           ws.send(Buffer.from(Buffer.from(i.data, "hex")));
-          delete globalData.broadcastMessages[index];
+
+          // Splice item out
+          globalData.broadcastMessages.splice(globalData.broadcastMessages.indexOf(i), 1);
         }
       }
 
