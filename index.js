@@ -25,8 +25,6 @@ server.on("connection", (ws) => {
   });
 
   async function recvData() {
-    const latencyTimer = config.latencyTimer;
-
     function sleep(ms) {
       return new Promise((resolve) => setTimeout(resolve, ms));
     }
