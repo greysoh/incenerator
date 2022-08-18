@@ -3,7 +3,8 @@ const crypto = require("crypto");
 
 const config = require("./config.json");
 
-const globalData = {
+let globalData = {
+  connectedClients: [],
   broadcastMessages: [],
   masterClientUUID: null,
 };
@@ -12,6 +13,7 @@ const server = new ws.Server({ port: config.port });
 
 server.on("connection", (ws) => {
   ws.uuid = crypto.randomUUID();
+  globalData.connectedClients.push(ws.uuid);
 
   ws.sendJSON = function (args) {
     this.send(JSON.stringify(args));
@@ -76,6 +78,8 @@ server.on("connection", (ws) => {
         }
       }
 
+      if (!globalData.connectedClients.includes(ws.uuid)) ws.close();
+
       await sleep(config.latencyTimer);
     }
   }
@@ -87,6 +91,7 @@ server.on("connection", (ws) => {
 
     if (ws.uuid == globalData.masterClientUUID) {
       globalData = {
+        connectedClients: [],
         broadcastMessages: [],
         masterClientUUID: null,
       };
