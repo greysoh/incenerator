@@ -24,7 +24,7 @@ function broadcastData(data) {
       func(data);
     });
   } catch (e) {
-    console.log("%s: WTF? Failed to broadcast data!", ws.uuid)
+    console.log("WTF? Failed to broadcast data!")
   }
 }
 
