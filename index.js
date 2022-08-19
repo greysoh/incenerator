@@ -3,13 +3,26 @@ const crypto = require("crypto");
 
 const config = require("./config.json");
 
-let globalData = {
+const defaultGlobalData = {
   connectedClients: [],
+  eventListeners: [],
   broadcastMessages: [],
   masterClientUUID: null,
 };
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+let globalData = JSON.parse(JSON.stringify(defaultGlobalData));
+
 const server = new ws.Server({ port: config.port });
+
+function broadcastData(data) {
+  globalData.eventListeners.forEach((func) => {
+    func(data);
+  });
+}
 
 server.on("connection", (ws) => {
   ws.uuid = crypto.randomUUID();
@@ -21,66 +34,37 @@ server.on("connection", (ws) => {
 
   console.log(`${ws.uuid} connected.`);
 
-  globalData.broadcastMessages.push({
+
+  globalData.eventListeners.push(async function(i) {
+    while (globalData.masterClientUUID == null) {
+      await sleep(100);
+    };
+    
+    if (ws.uuid == globalData.masterClientUUID) {
+      if (i.type == "connection" && i.uuid == ws.uuid || i.type == "data_response") return;
+          
+      ws.sendJSON(i);
+    } else if (ws.uuid == i.uuid && i.type == "data_response") {
+      if (i.data == undefined) {
+        console.log("%s: I have an undefined message!", i.uuid);
+        console.log("%s: Message log:", i.uuid);
+
+        console.log(i);
+        
+        return;
+      }
+
+      ws.send(Buffer.from(i.data, "hex"));
+    }
+  });
+
+  broadcastData({
     type: "connection",
     uuid: ws.uuid,
   });
 
   async function recvData() {
-    function sleep(ms) {
-      return new Promise((resolve) => setTimeout(resolve, ms));
-    }
-
-    let localData = [];
-
     while (true) {
-      for (const index in globalData.broadcastMessages) {
-        const i = globalData.broadcastMessages[index];
-
-        if (ws.uuid == globalData.masterClientUUID) {
-          // FIXME: Running a for loop inside a thing that does not in any cases need it is redundant.
-
-          if (JSON.stringify(globalData.broadcastMessages) == JSON.stringify(localData)) continue;
-
-          const diffArr = [];
-
-          for (const j in globalData.broadcastMessages) {
-            if (
-              localData.length <= j ||
-              JSON.stringify(localData[j]) !==
-              JSON.stringify(globalData.broadcastMessages[j])
-            ) {
-              diffArr.push(globalData.broadcastMessages[j]);
-            }
-          }
-
-          // Attempt to patch the diff
-          localData = JSON.parse(JSON.stringify(globalData.broadcastMessages));
-
-          for (const k of diffArr) {
-            if (!k) continue;
-            if (k.type == "connection" && k.uuid == ws.uuid || k.type == "data_response") continue;
-          
-            ws.sendJSON(k);
-
-            // Splice item out
-            globalData.broadcastMessages.splice(globalData.broadcastMessages.indexOf(k), 1);
-          }
-        } else if (i.type == "data_response") {
-          if (ws.uuid != i.uuid) continue;
-
-          if (i.data == undefined) {
-            console.log("%s: I have an undefined message!", i.uuid);
-            continue;
-          }
-
-          ws.send(Buffer.from(Buffer.from(i.data, "hex")));
-
-          // Splice item out
-          globalData.broadcastMessages.splice(globalData.broadcastMessages.indexOf(i), 1);
-        }
-      }
-
       if (!globalData.connectedClients.includes(ws.uuid)) ws.close();
 
       await sleep(config.latencyTimer);
@@ -99,7 +83,7 @@ server.on("connection", (ws) => {
         masterClientUUID: null,
       };
     } else {
-      globalData.broadcastMessages.push({
+      broadcastData({
         type: "disconnection",
         uuid: ws.uuid,
       });
@@ -162,10 +146,10 @@ server.on("connection", (ws) => {
           return;
         }
 
-        globalData.broadcastMessages.push(parsedMessage);
+        broadcastData(parsedMessage);
       }
     } else if (ws.uuid != globalData.masterClientUUID) {
-      globalData.broadcastMessages.push({
+      broadcastData({
         type: "data",
         UUID: ws.uuid,
         data: message.toString("hex"),
