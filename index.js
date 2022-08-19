@@ -19,9 +19,13 @@ let globalData = JSON.parse(JSON.stringify(defaultGlobalData));
 const server = new ws.Server({ port: config.port });
 
 function broadcastData(data) {
-  globalData.eventListeners.forEach((func) => {
-    func(data);
-  });
+  try {
+    globalData.eventListeners.forEach((func) => {
+      func(data);
+    });
+  } catch (e) {
+    console.log("%s: WTF? Failed to broadcast data!", ws.uuid)
+  }
 }
 
 server.on("connection", (ws) => {
@@ -33,7 +37,6 @@ server.on("connection", (ws) => {
   };
 
   console.log(`${ws.uuid} connected.`);
-
 
   globalData.eventListeners.push(async function(i) {
     while (globalData.masterClientUUID == null) {
