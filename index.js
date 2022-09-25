@@ -161,8 +161,6 @@ server.on("connection", (ws, req) => {
 
         return;
       }
-
-      const parsedMessage = JSON.parse(strMessage);
     } else if (req.url.startsWith("/trident")) {
       broadcastData({
         type: "data_response",
