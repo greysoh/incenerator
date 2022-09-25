@@ -55,7 +55,7 @@ server.on("connection", (ws, req) => {
       (ws.uuid == i.uuid && i.type == "data_response") ||
       (ws.hostUUID == i.uuid && i.type == "data")
     ) {
-      if (i.data == undefined) {
+      if (!i.data) {
         console.log("%s: I have an undefined message!", i.uuid);
         console.log("%s: Message log:", i.uuid);
 
@@ -80,7 +80,7 @@ server.on("connection", (ws, req) => {
     }
 
     const find = globalData.broadcastMessages.find(
-      (i) => i.type == "tridentCreate" && i.id == urlSplit[1]
+      i => i.type == "tridentCreate" && i.id == urlSplit[1]
     );
 
     if (find) {
@@ -89,6 +89,13 @@ server.on("connection", (ws, req) => {
         globalData.broadcastMessages.indexOf(find),
         1
       );
+
+      const items = globalData.broadcastMessages.filter(i => i.type == "tridentMessages" && i.data.uuid == find.uuid);
+
+      for (i of items) {
+        ws.send(Buffer.from(i.data.data, "hex"));
+        globalData.broadcastMessages.splice(globalData.broadcastMessages.indexOf(items), 1);
+      }
     } else {
       return ws.close();
     }
@@ -168,11 +175,27 @@ server.on("connection", (ws, req) => {
         data: message.toString("hex"),
       });
     } else if (ws.uuid != globalData.masterClientUUID) {
-      broadcastData({
-        type: "data",
-        uuid: ws.uuid,
-        data: message.toString("hex"),
-      });
+      const find = globalData.broadcastMessages.find(
+        (i) => i.type == "tridentCreate" && i.uuid == ws.uuid
+      );
+      
+      if (find) {
+        globalData.broadcastMessages.push({
+          type: "tridentMessages", 
+          data: {
+            uuid: ws.uuid,
+            data: message.toString("hex")
+          } 
+        })
+        
+        return;
+      } else {
+        broadcastData({
+          type: "data",
+          uuid: ws.uuid,
+          data: message.toString("hex"),
+        });
+      }
     }
   });
 });
