@@ -24,7 +24,7 @@ function broadcastData(data) {
       func(data);
     });
   } catch (e) {
-    console.log("WTF? Failed to broadcast data!")
+    console.log("WTF? Failed to broadcast data!");
   }
 }
 
@@ -38,16 +38,23 @@ server.on("connection", (ws, req) => {
 
   console.log(`${ws.uuid} connected.`);
 
-  globalData.eventListeners.push(async function(i) {
+  globalData.eventListeners.push(async function (i) {
     while (globalData.masterClientUUID == null) {
       await sleep(100);
-    };
-    
+    }
+
     if (ws.uuid == globalData.masterClientUUID) {
-      if (i.type != "connection" || i.type == "connection" && i.UUID == ws.uuid) return;
+      if (
+        i.type != "connection" ||
+        (i.type == "connection" && i.UUID == ws.uuid)
+      )
+        return;
 
       ws.sendJSON(i);
-    } else if ((ws.uuid == i.uuid && i.type == "data_response") || (ws.hostUUID == i.uuid && i.type == "data")) {
+    } else if (
+      (ws.uuid == i.uuid && i.type == "data_response") ||
+      (ws.hostUUID == i.uuid && i.type == "data")
+    ) {
       if (i.data == undefined) {
         console.log("%s: I have an undefined message!", i.uuid);
         console.log("%s: Message log:", i.uuid);
@@ -60,23 +67,28 @@ server.on("connection", (ws, req) => {
   });
 
   const id = crypto.randomUUID();
-  
+
   if (req.url.startsWith("/trident/")) {
-    const urlSplit = req.url.split("/").filter(element => {
-      return element !== '';
+    const urlSplit = req.url.split("/").filter((element) => {
+      return element != "";
     });
-    
+
     if (urlSplit.length != 3) {
       return ws.close();
     } else if (!config.passwords.includes(urlSplit[2])) {
       return ws.close();
     }
 
-    const find = globalData.broadcastMessages.find(i => i.type == "tridentCreate" && i.id == urlSplit[1]);
-        
+    const find = globalData.broadcastMessages.find(
+      (i) => i.type == "tridentCreate" && i.id == urlSplit[1]
+    );
+
     if (find) {
       ws.hostUUID = find.uuid;
-      globalData.broadcastMessages.splice(globalData.broadcastMessages.indexOf(find), 1);
+      globalData.broadcastMessages.splice(
+        globalData.broadcastMessages.indexOf(find),
+        1
+      );
     } else {
       return ws.close();
     }
@@ -84,15 +96,15 @@ server.on("connection", (ws, req) => {
     globalData.broadcastMessages.push({
       type: "tridentCreate",
       uuid: ws.uuid,
-      id: id
+      id: id,
     });
-  
+
     broadcastData({
       type: "connection",
       uuid: ws.uuid,
-      id: id
+      id: id,
     });
-  } 
+  }
 
   async function recvData() {
     while (true) {
@@ -103,7 +115,7 @@ server.on("connection", (ws, req) => {
   }
 
   recvData();
- 
+
   ws.on("close", function () {
     console.log(`${ws.uuid} disconnected.`);
 
@@ -155,7 +167,7 @@ server.on("connection", (ws, req) => {
       broadcastData({
         type: "data_response",
         uuid: ws.hostUUID,
-        data: message.toString("hex")
+        data: message.toString("hex"),
       });
     } else if (ws.uuid != globalData.masterClientUUID) {
       broadcastData({
